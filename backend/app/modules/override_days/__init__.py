@@ -11,7 +11,6 @@
 from datetime import date, timedelta
 
 from app.db import write_tx
-from app.engines import pin_display
 
 DEFAULT_WARN_DAYS = 3
 
@@ -84,10 +83,7 @@ def alert_rows(conn, today: date | None = None) -> list[dict]:
     warn = _warn_days(conn)
     out = []
     for r in rows:
-        raw = pin_display.alerts_strip_pin(r) if not pin_display.detail_uses_pin() else dict(r)
-        if not pin_display.sweep_uses_pin():
-            raw = pin_display.alerts_strip_pin(r)
-        lv = lot_level(raw, warn, today)
+        lv = lot_level(r, warn, today)
         if lv["level"] in ("expired", "soon"):
             r.update(lv)
             out.append(r)

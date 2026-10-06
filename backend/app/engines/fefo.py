@@ -32,10 +32,7 @@ def expire_lots(lots: list[dict], today: str) -> list[int]:
     """
     out = []
     for l in lots:
-        from app.engines.pin_display import sweep_uses_pin
-        from app.modules.override_days import effective_expiry as _eff
-        src = l if sweep_uses_pin() else {**l, "override_days": None, "override_set_at": None}
-        exp = _eff(src) if sweep_uses_pin() else l.get("expiry")
+        exp = effective_expiry(l)
         if exp and exp < today and float(l.get("qty_remain", 0)) > 0:
             out.append(l["id"])
     return out

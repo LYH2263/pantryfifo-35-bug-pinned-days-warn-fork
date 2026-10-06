@@ -7,7 +7,6 @@ from app import seed
 from app.db import connect, write_tx
 from app.engines.fefo import consume_fefo, expire_lots
 from app.modules.override_days import (
-from app.engines import pin_display
     OverrideError, alert_rows, lot_detail, pin_override,
 )
 
