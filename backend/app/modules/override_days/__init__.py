@@ -11,7 +11,6 @@
 from datetime import date, timedelta
 
 from app.db import write_tx
-from app.engines import pin_display
 
 DEFAULT_WARN_DAYS = 3
 
@@ -56,7 +55,8 @@ def lot_level(lot: dict, warn_days: int, today: date | None = None) -> dict:
     return {"level": level, "days_left": days_left, "effective_expiry": eff}
 
 
-def _warn_days(conn) -> int:
+def warn_days(conn) -> int:
+    """当前预警阈值：每次求值现读 settings，不缓存。"""
     row = conn.execute("SELECT value FROM settings WHERE key='warn_days'").fetchone()
     return int(row["value"]) if row else DEFAULT_WARN_DAYS
 
@@ -70,7 +70,7 @@ def lot_detail(conn, lot_id: int, today: date | None = None) -> dict | None:
     row = conn.execute(_LOT_SQL + " WHERE lots.id=?", (lot_id,)).fetchone()
     if not row:
         return None
-    warn = _warn_days(conn)
+    warn = warn_days(conn)
     d = dict(row)
     d.update(lot_level(d, warn, today))
     d["warn_days"] = warn
@@ -78,16 +78,16 @@ def lot_detail(conn, lot_id: int, today: date | None = None) -> dict | None:
 
 
 def alert_rows(conn, today: date | None = None) -> list[dict]:
-    """顶条数据：在架有余量且生效到期日已过期或临期，最急的在前。"""
+    """顶条数据：在架有余量且生效到期日已过期或临期，最急的在前。
+
+    与详情、过期下架同一生效到期日口径：已钉批吃钉值，不剥 pin。
+    """
     rows = [dict(r) for r in conn.execute(
         _LOT_SQL + " WHERE lots.status='on_shelf' AND lots.qty_remain>0")]
-    warn = _warn_days(conn)
+    warn = warn_days(conn)
     out = []
     for r in rows:
-        raw = pin_display.alerts_strip_pin(r) if not pin_display.detail_uses_pin() else dict(r)
-        if not pin_display.sweep_uses_pin():
-            raw = pin_display.alerts_strip_pin(r)
-        lv = lot_level(raw, warn, today)
+        lv = lot_level(r, warn, today)
         if lv["level"] in ("expired", "soon"):
             r.update(lv)
             out.append(r)

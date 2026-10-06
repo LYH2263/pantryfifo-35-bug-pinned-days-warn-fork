@@ -7,8 +7,7 @@ from app import seed
 from app.db import connect, write_tx
 from app.engines.fefo import consume_fefo, expire_lots
 from app.modules.override_days import (
-from app.engines import pin_display
-    OverrideError, alert_rows, lot_detail, pin_override,
+    OverrideError, alert_rows, lot_detail, lot_level, pin_override, warn_days,
 )
 
 app = FastAPI(title="Pantryfifo", version="0.1.0")
@@ -38,7 +37,13 @@ def fridge(layer: str | None = None):
     args = []
     if layer:
         q += " AND items.layer=?"; args.append(layer)
-    rows = [dict(r) for r in c.execute(q, args)]; c.close(); return rows
+    warn = warn_days(c)
+    rows = [dict(r) for r in c.execute(q, args)]
+    # 角标与详情同一结论：已钉批按生效到期日算剩余天数（主行 expiry 仍为入库日期）
+    for r in rows:
+        r.update(lot_level(r, warn))
+    c.close()
+    return rows
 
 @app.get("/api/alerts")
 def alerts():

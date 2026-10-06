@@ -1,6 +1,6 @@
 <template>
   <div>
-    <h1>设置 · 钉值与预警分叉</h1>
+    <h1>设置 · 预警阈值</h1>
     <label>warn_days（临期预警阈值，天）：</label>
     <input type="number" min="0" step="1" v-model.number="warn" />
     <button @click="save">保存</button>

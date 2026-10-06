@@ -19,7 +19,8 @@ def consume_fefo(lots: list[dict], qty: float) -> dict:
             break
         avail = float(lot["qty_remain"])
         take = min(avail, need)
-        deductions.append({"lot_id": lot["id"], "take": take, "expiry": lot.get("expiry")})
+        deductions.append({"lot_id": lot["id"], "take": take,
+                           "expiry": effective_expiry(lot)})
         need -= take
     if need > 1e-9:
         return {"ok": False, "reason": "short", "deductions": deductions, "short": round(need, 3)}
@@ -28,14 +29,12 @@ def consume_fefo(lots: list[dict], qty: float) -> dict:
 def expire_lots(lots: list[dict], today: str) -> list[int]:
     """Ids that should leave shelf: remaining>0 and effective expiry < today.
 
-    与顶条 expired 同一条规则（override_days 模块）：已钉批按生效到期日判断。
+    与顶条 expired、详情 level=expired 同一条规则（override_days 模块）：
+    已钉批按生效到期日判断；入库日历已过期但钉到今天之后的批不被收走。
     """
     out = []
     for l in lots:
-        from app.engines.pin_display import sweep_uses_pin
-        from app.modules.override_days import effective_expiry as _eff
-        src = l if sweep_uses_pin() else {**l, "override_days": None, "override_set_at": None}
-        exp = _eff(src) if sweep_uses_pin() else l.get("expiry")
+        exp = effective_expiry(l)
         if exp and exp < today and float(l.get("qty_remain", 0)) > 0:
             out.append(l["id"])
     return out
